@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Table</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <table class="table">
+      <tr class="table__header">
+        {% for header in headings %}
+        <th class="table__cell">{{ header }}</th>
+        {% endfor %}
+      </tr>
+      {% for row in data %}
+      <tr class="table__row">
+        <td> {{ row.id }}</td>
+        <td> {{ row.seller_id }}</td>
+        <td> {{ row.quantity_kwh }}</td>
+        <td> {{ row.value }}</td>
+        <td> {{ row.validity_time }}</td>
+        <td> {{ row.maturity_date }}</td>
+        <td> {{ row.plan_type }}</td>
+        <td> {{ row.status }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </body>
+</html>

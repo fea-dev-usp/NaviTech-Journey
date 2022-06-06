@@ -1,5 +1,5 @@
 from urllib import request
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify
 from flask_restful import Api, Resource, marshal, reqparse, abort, fields, marshal_with
 from flask_table import Table, Col
 from flask_sqlalchemy import SQLAlchemy
@@ -10,14 +10,14 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 db = SQLAlchemy(app)
 
 
-class ItemTable(Table):
+class PlanTable(Table):
     id = Col('Id')
     seller_id = Col('Seller')
     quantity_kwh = Col('Quantity of KwH')
     value = Col('Price')
     validity_time = Col('Validity time')
     maturity_date = Col('Maturity Date')
-    plan_type = Col('Plan Date')
+    plan_type = Col('Plan Type')
     status = Col('Status')
 
 class PlanModel(db.Model):
@@ -34,15 +34,20 @@ class PlanModel(db.Model):
     def __repr__(self):
         return "Plataform(seller_id = {}, quantity_kwh = {}, value = {}, validity_time = {}, maturity_date = {}, plan_type = {}, status = {})".format(seller_id, quantity_kwh, value, validity_time, maturity_date, plan_type, status)
 
-class OrderModel(db.Model):
+class OrderTable(Table):
+    id = Col('Id')
+    plan_id = Col('Plan Id')
+    buyer_id = Col('Buyer')
+    date = Col('Date')
 
+class OrderModel(db.Model):
     id =  db.Column(db.String(20), primary_key=True)
     plan_id = db.Column(db.String(100))
     buyer_id = db.Column(db.String(100))
     date = db.Column(db.String(100))
    
     def __repr__(self):
-        return "Plataform(plan_id = {}, buyer_id = {}, date = {})".format(plan_id, buyer_id, date)
+        return "Order(plan_id = {}, buyer_id = {}, date = {})".format(plan_id, buyer_id, date)
 
 db.create_all()
 
@@ -62,29 +67,14 @@ orders_post_args.add_argument("plan_id", type=str)
 orders_post_args.add_argument("buyer_id", type=str)
 orders_post_args.add_argument("date", type=str)
 
-# serialize objects
-resource_fields = {
-    'id': fields.String,
-    'seller_id': fields.String,  
-    'quantity_kwh': fields.Float, 
-    'value': fields.Float, 
-    'validity_time': fields.String,
-    'maturity_date': fields.String,
-    'plan_type': fields.String,
-    'status': fields.String
-}
+headings = ['id', 'seller_id', 'quantity_kwh', 'value', 'validity_time', 'maturity_date', 'plan_type', 'status']
 
-
-@marshal_with(resource_fields)
 @app.route('/plans', methods=['GET'])
 def get_plans():
     result = PlanModel.query.all()
-    table = ItemTable(result)
-    return table.__html__()
-
+    return render_template("table.html", headings = headings, data = result)
 
 @app.route('/plans', methods=['POST'])
-@marshal_with(resource_fields)
 def post_plans():
     args = plan_post_args.parse_args()
     result = PlanModel.query.filter_by(id = args['id']).first()
@@ -99,51 +89,17 @@ def post_plans():
         validity_time = args['validity_time'],
         maturity_date = args['maturity_date'],
         plan_type = args['plan_type'],
-        status = args['status']
-        )
+        status = 'Disponível')
 
     db.session.add(plan)
     db.session.commit()
     # db.session.close()
-    return plan, 201 # created
+    return jsonify(result), 201 # created
 
-class Plans(Resource):
-    @marshal_with(resource_fields)
-    def get(self):
-        result = PlanModel.query.all()
-        table = ItemTable(result)
-        #print(table.__html__())
-        #return table.__html__()
-        template = _endpoint_templates['default']
-        return render_template(template)
-
-    @marshal_with(resource_fields)
-    def post(self):
+@app.route('/plans', methods=['PUT'])
+def put_plans():
         args = plan_post_args.parse_args()
         result = PlanModel.query.filter_by(id = args['id']).first()
-        if result:
-            abort(409, message="Plan id taken...")
-
-        plan = PlanModel(
-            id = args["id"], 
-            seller_id = args['seller_id'], 
-            quantity_kwh = args['quantity_kwh'], 
-            value = args['value'],
-            validity_time = args['validity_time'],
-            maturity_date = args['maturity_date'],
-            plan_type = args['plan_type'],
-            status = args['status']
-            )
-
-        db.session.add(plan)
-        db.session.commit()
-        # db.session.close()
-        return plan, 201 # created
-
-    @marshal_with(resource_fields)
-    def put(self, plan_id):
-        args = plan_post_args.parse_args()
-        result = PlanModel.query.filter_by(id = plan_id).first()
         if not result:
             abort(404, message="plan doesn't exist, cannot update")
 
@@ -164,43 +120,35 @@ class Plans(Resource):
 
         db.session.commit()
 
-        return result
+        return jsonify(result)
 
-resource_fields_ex =  {
-    'id': fields.String,
-    'plan_id': fields.String,  
-    'buyer_id': fields.String,
-    'date': fields.String
-}
-
-class Orders(Resource):
-    @marshal_with(resource_fields_ex)
-    def get(self):
-        result = OrderModel.query.all()
-        return result
+@app.route('/orders', methods=['GET'])
+def get_orders():
+    result = OrderModel.query.all()
+    table = OrderTable(result)
+    return table.__html__()
     
-    @marshal_with(resource_fields_ex)
-    def post(self):
-        args = orders_post_args.parse_args()
-        result = PlanModel.query.filter_by(id = args["plan_id"]).first()
-        if not result:
-            abort(404, message="Plan id does't exist...")
+@app.route('/orders', methods=['POST'])
+def post_orders():
+    args = orders_post_args.parse_args()
+    result = PlanModel.query.filter_by(id = args["plan_id"]).first()
+    if not result:
+        abort(404, message="Plan id does't exist...")
 
-        result.status = "vendido"
+    result.status = "Vendido"
 
-        order = OrderModel(
-            id = args["id"], 
-            plan_id = args['plan_id'], 
-            buyer_id = args['buyer_id'], 
-            date = args['date']
-            )
+    order = OrderModel(
+        id = args["id"], 
+        plan_id = args['plan_id'], 
+        buyer_id = args['buyer_id'], 
+        date = args['date']
+        )
 
-        db.session.add(order)
-        db.session.commit()
-        return order, 201
-
-#api.add_resource(Plans, "/plans")
-#api.add_resource(Orders, "/orders")
+    db.session.add(order)
+    db.session.commit()
+    return order, 201
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(port=5001, debug=True)
+    # http://127.0.0.1:5001/plans
+    # http://127.0.0.1:5001/orders
