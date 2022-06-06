@@ -15,15 +15,17 @@ class PlanTable(Table):
     seller_id = Col('Seller')
     quantity_kwh = Col('Quantity of KwH')
     value = Col('Price')
+    distribuidora = Col('Distribuidora')
     validity_time = Col('Validity time')
     maturity_date = Col('Maturity Date')
     plan_type = Col('Plan Type')
     status = Col('Status')
 
 class PlanModel(db.Model):
-
+    __tablename__ = 'plans'
     id =  db.Column(db.String(20), primary_key=True)
     seller_id = db.Column(db.String(100))
+    distribuidora = db.Column(db.String(100))
     quantity_kwh = db.Column(db.Float)
     value =db.Column(db.Float)
     validity_time = db.Column(db.String(100))
@@ -32,7 +34,7 @@ class PlanModel(db.Model):
     status = db.Column(db.String(100))
 
     def __repr__(self):
-        return "Plataform(seller_id = {}, quantity_kwh = {}, value = {}, validity_time = {}, maturity_date = {}, plan_type = {}, status = {})".format(seller_id, quantity_kwh, value, validity_time, maturity_date, plan_type, status)
+        return "Plans(seller_id = {}, quantity_kwh = {}, distribuidora ={}, value = {}, validity_time = {}, maturity_date = {}, plan_type = {}, status = {})".format(seller_id, quantity_kwh, distribuidora, value, validity_time, maturity_date, plan_type, status)
 
 class OrderTable(Table):
     id = Col('Id')
@@ -41,6 +43,7 @@ class OrderTable(Table):
     date = Col('Date')
 
 class OrderModel(db.Model):
+    __tablename__ = 'orders'
     id =  db.Column(db.String(20), primary_key=True)
     plan_id = db.Column(db.String(100))
     buyer_id = db.Column(db.String(100))
@@ -55,6 +58,7 @@ plan_post_args = reqparse.RequestParser()
 plan_post_args.add_argument("id", type=str)
 plan_post_args.add_argument("seller_id", type=str)
 plan_post_args.add_argument("quantity_kwh", type=float)
+plan_post_args.add_argument("distribuidora", type=str)
 plan_post_args.add_argument("value", type=float)
 plan_post_args.add_argument("validity_time", type=str)
 plan_post_args.add_argument("maturity_date", type=str)
@@ -67,7 +71,7 @@ orders_post_args.add_argument("plan_id", type=str)
 orders_post_args.add_argument("buyer_id", type=str)
 orders_post_args.add_argument("date", type=str)
 
-headings = ['id', 'seller_id', 'quantity_kwh', 'value', 'validity_time', 'maturity_date', 'plan_type', 'status']
+headings = ['id', 'seller_id', 'quantity_kwh', 'distribuidora', 'value', 'validity_time', 'maturity_date', 'plan_type', 'status']
 
 @app.route('/plans', methods=['GET'])
 def get_plans():
@@ -84,7 +88,8 @@ def post_plans():
     plan = PlanModel(
         id = args["id"], 
         seller_id = args['seller_id'], 
-        quantity_kwh = args['quantity_kwh'], 
+        quantity_kwh = args['quantity_kwh'],
+        distribuidora = args['distribuidora'],  
         value = args['value'],
         validity_time = args['validity_time'],
         maturity_date = args['maturity_date'],
@@ -93,7 +98,7 @@ def post_plans():
 
     db.session.add(plan)
     db.session.commit()
-    # db.session.close()
+    db.session.close()
     return jsonify(result), 201 # created
 
 @app.route('/plans', methods=['PUT'])
@@ -107,6 +112,8 @@ def put_plans():
             result.seller_id = args['seller_id']
         if args["quantity_kwh"]:
             result.quantity_kwh = args['quantity_kwh']
+        if args["distribuidora"]:
+            result.distribuidora = args['distribuidora']
         if args["value"]:
             result.value = args['value']
         if args["validity_time"]:
